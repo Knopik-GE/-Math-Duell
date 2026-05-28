@@ -662,7 +662,7 @@ function pressNum(player,val){
   } else {
     // count only digit characters (ignore comma) for length check
     const digitCount = inputs[player].replace(',','').length;
-    const maxDigits = isDecimal ? 5 : 3; // e.g. "1550,5" → 5 digits
+    const maxDigits = isDecimal ? 6 : 3;
     if(digitCount >= maxDigits) return;
     inputs[player]+=val;
   }
@@ -703,7 +703,9 @@ function submitAnswer(player){
   const isDecimalQ = currentQ[player].rawAnswer !== undefined;
   if(isDecimalQ){
     const norm=s=>String(s).replace(/,(\d*?)0+$/,',$1').replace(/,$/,'');
-    ok = norm(String(val)) === norm(String(currentQ[player].answer));
+    const given = norm(String(val));
+    const expected = norm(String(currentQ[player].answer));
+    ok = given === expected;
   } else {
     ok = val === currentQ[player].answer;
   }
