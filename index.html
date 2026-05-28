@@ -548,38 +548,45 @@ function makeDecimalTask(lastQ){
     let aStr, ansStr, rawAnswer;
 
     if(op==='×'){
-      // Pick a clean decimal a (1–2 dp), multiply by f → integer answer
-      // e.g. a=0,13 × 100 = 13
-      const digits = f===10?1:f===100?2:3; // decimal places in a
-      const intPart = ~~(Math.random()*9)+1;         // 1–9
-      const decPart = ~~(Math.random()*9)+1;         // 1–9
+      // Pick a clean decimal a (1–2 dp, no zero), multiply by f → integer answer
+      const intPart = ~~(Math.random()*9)+1;   // 1–9
+      const decPart = ~~(Math.random()*9)+1;   // 1–9
       let a;
-      if(digits===1)      a = intPart + decPart*0.1;
-      else if(digits===2) a = intPart + decPart*0.01;
-      else                a = intPart*0.001 + decPart*0.0001; // very small for ×1000
+      if(f===10)       a = intPart + decPart*0.1;
+      else if(f===100) a = intPart + decPart*0.01;
+      else             a = intPart + decPart*0.001;
       a = Math.round(a*10000)/10000;
-      rawAnswer = Math.round(a * f * 1000) / 1000;
+      rawAnswer = Math.round(a * f * 10000) / 10000;
       aStr = fmtDec(a);
       ansStr = fmtDec(rawAnswer);
     } else {
-      // ÷: integer a divided by f → decimal answer
-      // e.g. 135 ÷ 100 = 1,35
-      const ansInt = ~~(Math.random()*9)+1;
+      // ÷: integer ÷ f → decimal answer
+      const intPart = ~~(Math.random()*9)+1;
       const decPart = ~~(Math.random()*9)+1;
       let ans;
-      if(f===10)        ans = ansInt + decPart*0.1;
-      else if(f===100)  ans = ansInt + decPart*0.01;
-      else              ans = ansInt + decPart*0.001;
+      if(f===10)       ans = intPart + decPart*0.1;
+      else if(f===100) ans = intPart + decPart*0.01;
+      else             ans = intPart + decPart*0.001;
       ans = Math.round(ans*10000)/10000;
-      const a = Math.round(ans * f * 1000) / 1000;
+      const a = Math.round(ans * f * 10000) / 10000;
       rawAnswer = ans;
       aStr = fmtDec(a);
       ansStr = fmtDec(ans);
     }
 
+    // skip if any value is 0 or answer string is malformed
+    if(!aStr||!ansStr||aStr==='0'||ansStr==='0') { t=null; continue; }
     t = {a:aStr, b:f, op, answer:ansStr, rawAnswer};
   } while(!t||(lastQ&&t.a===lastQ.a&&t.b===lastQ.b&&t.op===lastQ.op));
   return t;
+}
+
+function fmtDec(n){
+  // Format number using comma as decimal separator (German style)
+  // preserve up to 3 decimal places, strip trailing zeros
+  let s = String(Math.round(n*1000)/1000);
+  s = s.replace('.',',');
+  return s;
 }
 
 function fmtDec(n){
