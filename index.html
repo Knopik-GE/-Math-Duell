@@ -164,7 +164,18 @@
   .result-card .r-emoji{font-size:1.8rem}
   .vs-badge{font-family:'Fredoka One',cursive;font-size:1.2rem;color:rgba(255,255,255,.25)}
 
-  /* tournament ranking */
+  /* solo fullscreen – single centered area */
+  #game.solo-game { justify-content:center; }
+  #game.solo-game #area2,
+  #game.solo-game #gameDivider { display:none !important; }
+  #game.solo-game .player-area { max-width:600px; flex:none; width:100%; }
+  #game.solo-game .task-question { font-size:clamp(3.5rem,8vw,6rem); }
+  #game.solo-game .task-input-display { font-size:clamp(2.8rem,6vw,4.5rem); min-width:180px; min-height:90px; }
+  #game.solo-game .numpad { max-width:420px; gap:12px; }
+  #game.solo-game .num-btn { font-size:clamp(1.8rem,4vw,2.6rem); border-radius:18px; }
+  #game.solo-game .score-badge { width:58px; height:58px; font-size:2rem; }
+  #game.solo-game .player-name { font-size:clamp(1.4rem,3vw,2rem); }
+  #game.solo-game .timer-bar-wrap { height:10px; }
   .t-ranking{width:100%;max-width:520px;background:rgba(255,255,255,.04);border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
   .t-ranking-header{font-family:'Fredoka One',cursive;font-size:1rem;color:var(--purple);padding:10px 16px;background:rgba(162,155,254,.08);letter-spacing:1px}
   .t-rank-row{display:flex;align-items:center;gap:12px;padding:8px 16px;border-top:1px solid rgba(255,255,255,.05);transition:background .2s}
@@ -537,7 +548,7 @@ function makeNegativeTask(lastQ){
   }while(!t||(lastQ&&t.a===lastQ.a&&t.b===lastQ.b&&t.op===lastQ.op));
   return t;
 }
-// Makes a decimal task: multiply/divide by 10, 100, 1000
+// Makes a decimal task using pure integer arithmetic to avoid float errors
 function makeDecimalTask(lastQ){
   const factors=[10,100,1000];
   const ops=['×','÷'];
@@ -548,45 +559,45 @@ function makeDecimalTask(lastQ){
     let aStr, ansStr, rawAnswer;
 
     if(op==='×'){
-      // Pick a clean decimal a (1–2 dp, no zero), multiply by f → integer answer
-      const intPart = ~~(Math.random()*9)+1;   // 1–9
-      const decPart = ~~(Math.random()*9)+1;   // 1–9
-      let a;
-      if(f===10)       a = intPart + decPart*0.1;
-      else if(f===100) a = intPart + decPart*0.01;
-      else             a = intPart + decPart*0.001;
-      a = Math.round(a*10000)/10000;
-      rawAnswer = Math.round(a * f * 10000) / 10000;
-      aStr = fmtDec(a);
-      ansStr = fmtDec(rawAnswer);
+      // Build decimal as integer / f to guarantee clean result
+      // e.g. f=1000: pick integer 1001..9999, divide by 1000 → 1,001..9,999
+      const minInt = f+1;           // avoid x,000 (would be integer)
+      const maxInt = f*9+f-1;       // e.g. f=10: 11..99, f=100: 101..999
+      const num = minInt + ~~(Math.random()*(maxInt-minInt+1));
+      // a = num/f  (decimal), answer = num (integer)
+      aStr = fmtInt(num, f);        // format as decimal with comma
+      ansStr = String(num);
+      rawAnswer = num;
     } else {
-      // ÷: integer ÷ f → decimal answer
-      const intPart = ~~(Math.random()*9)+1;
-      const decPart = ~~(Math.random()*9)+1;
-      let ans;
-      if(f===10)       ans = intPart + decPart*0.1;
-      else if(f===100) ans = intPart + decPart*0.01;
-      else             ans = intPart + decPart*0.001;
-      ans = Math.round(ans*10000)/10000;
-      const a = Math.round(ans * f * 10000) / 10000;
-      rawAnswer = ans;
-      aStr = fmtDec(a);
-      ansStr = fmtDec(ans);
+      // ÷: pick integer dividend, result is decimal
+      // e.g. f=1000: dividend=1001..9999, answer=1,001..9,999
+      const minInt = f+1;
+      const maxInt = f*9+f-1;
+      const dividend = minInt + ~~(Math.random()*(maxInt-minInt+1));
+      // answer = dividend/f (decimal)
+      aStr = String(dividend);
+      ansStr = fmtInt(dividend, f);
+      rawAnswer = dividend/f;
     }
 
-    // skip if any value is 0 or answer string is malformed
-    if(!aStr||!ansStr||aStr==='0'||ansStr==='0') { t=null; continue; }
+    if(!aStr||!ansStr) { t=null; continue; }
     t = {a:aStr, b:f, op, answer:ansStr, rawAnswer};
   } while(!t||(lastQ&&t.a===lastQ.a&&t.b===lastQ.b&&t.op===lastQ.op));
   return t;
 }
 
+// Format integer n divided by f as German decimal string
+// e.g. fmtInt(1234, 1000) → "1,234"  fmtInt(75, 10) → "7,5"
+function fmtInt(n, f){
+  const dp = f===10?1:f===100?2:3;
+  const whole = Math.floor(n/f);
+  const frac = n % f;
+  const fracStr = String(frac).padStart(dp,'0').replace(/0+$/,''); // strip trailing zeros
+  return fracStr ? whole+','+fracStr : String(whole);
+}
+
 function fmtDec(n){
-  // Format number using comma as decimal separator (German style)
-  // preserve up to 3 decimal places, strip trailing zeros
-  let s = String(Math.round(n*1000)/1000);
-  s = s.replace('.',',');
-  return s;
+  return String(Math.round(n*1000)/1000).replace('.',',');
 }
 
 function fmtDec(n){
@@ -777,9 +788,11 @@ function startGame(){
   const isSolo=gameMode==='solo';
   document.getElementById('area2').classList.toggle('hidden',isSolo);
   document.getElementById('gameDivider').classList.toggle('hidden',isSolo);
+  document.getElementById('game').classList.toggle('solo-game', isSolo);
   const area1=document.getElementById('area1');
+  const area2=document.getElementById('area2');
   area1.className='player-area '+(isSolo?'solo-area':'p1');
-  document.getElementById('area2').className='player-area p2';
+  area2.className='player-area p2'+(isSolo?' hidden':'');
 
   for(let p=0;p<2;p++){
     document.getElementById('score'+(p+1)).textContent='0';
@@ -940,6 +953,7 @@ function spawnConfetti(){
 
 function resetGame(){
   timers.forEach(t=>clearInterval(t));
+  document.getElementById('game').classList.remove('solo-game');
   document.getElementById('result').classList.add('hidden');
   document.getElementById('tournamentRanking').classList.add('hidden');
   document.getElementById('hsSectionWrap').classList.remove('hidden');
